@@ -1,0 +1,633 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Памятники Великой Отечественной Войны</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background: linear-gradient(135deg, #1a2a6c, #b21f1f, #1a2a6c);
+            color: #fff;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+        
+        .header {
+            background: rgba(0, 0, 0, 0.7);
+            padding: 1.5rem;
+            text-align: center;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+            position: relative;
+            z-index: 1000;
+        }
+        
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 0.5rem;
+            text-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+        }
+        
+        .header p {
+            font-size: 1.2rem;
+            max-width: 800px;
+            margin: 0 auto;
+            color: #e0e0e0;
+        }
+        
+        .container {
+            display: flex;
+            padding: 20px;
+            gap: 20px;
+            max-width: 1600px;
+            margin: 0 auto;
+        }
+        
+        .map-container {
+            flex: 3;
+            height: 75vh;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.6);
+            position: relative;
+            background: #2c3e50;
+        }
+        
+        #map {
+            height: 100%;
+            width: 100%;
+        }
+        
+        .sidebar {
+            flex: 1;
+            background: rgba(30, 30, 50, 0.85);
+            border-radius: 12px;
+            padding: 25px;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.6);
+            max-height: 75vh;
+            overflow-y: auto;
+        }
+        
+        .sidebar h2 {
+            color: #ffcc00;
+            margin-bottom: 20px;
+            text-align: center;
+            border-bottom: 2px solid #ffcc00;
+            padding-bottom: 10px;
+        }
+        
+        .controls {
+            margin-bottom: 25px;
+        }
+        
+        .search-box {
+            width: 100%;
+            padding: 12px;
+            margin-bottom: 15px;
+            border-radius: 8px;
+            border: 2px solid #ffcc00;
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            font-size: 1rem;
+        }
+        
+        .filter-title {
+            display: block;
+            margin-bottom: 10px;
+            color: #ffcc00;
+            font-weight: bold;
+        }
+        
+        .filter-options {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .filter-btn {
+            flex: 1;
+            min-width: 120px;
+            padding: 10px;
+            border: none;
+            border-radius: 8px;
+            background: rgba(255, 204, 0, 0.2);
+            color: #ffcc00;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: bold;
+        }
+        
+        .filter-btn:hover, .filter-btn.active {
+            background: #ffcc00;
+            color: #1a2a6c;
+        }
+        
+        .monument-list {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        
+        .monument-item {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            padding: 15px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border-left: 4px solid #ffcc00;
+        }
+        
+        .monument-item:hover {
+            background: rgba(255, 204, 0, 0.2);
+            transform: translateX(5px);
+        }
+        
+        .monument-item h3 {
+            color: #ffcc00;
+            margin-bottom: 8px;
+        }
+        
+        .monument-item p {
+            font-size: 0.9rem;
+            color: #ddd;
+        }
+        
+        .monument-type {
+            display: inline-block;
+            background: rgba(178, 31, 31, 0.7);
+            padding: 3px 8px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            margin-top: 8px;
+        }
+        
+        .viewer-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            z-index: 2000;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.5s ease;
+        }
+        
+        .viewer-container.active {
+            opacity: 1;
+            pointer-events: all;
+        }
+        
+        .viewer-header {
+            width: 90%;
+            max-width: 800px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 0;
+        }
+        
+        .viewer-header h2 {
+            color: #ffcc00;
+            font-size: 2rem;
+        }
+        
+        .close-viewer {
+            background: #b21f1f;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            font-size: 1.5rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+        }
+        
+        .close-viewer:hover {
+            background: #ff3333;
+           /* transform: rotate(90deg);*/
+        }
+        
+        .viewer-content {
+            width: 90%;
+            max-width: 800px;
+            height: 70vh;
+            background: #222;
+            border-radius: 12px;
+            overflow: hidden;
+            position: relative;
+        }
+        
+        #model-viewer {
+            width: 100%;
+            height: 100%;
+        }
+        
+        .viewer-description {
+            width: 90%;
+            max-width: 800px;
+            padding: 20px 0;
+            color: #ddd;
+            line-height: 1.6;
+        }
+        
+        .footer {
+            text-align: center;
+            padding: 25px;
+            background: rgba(0, 0, 0, 0.7);
+            margin-top: 20px;
+            font-size: 1.1rem;
+            color: #aaa;
+        }
+        
+        .footer a {
+            color: #ffcc00;
+            text-decoration: none;
+        }
+        
+        .footer a:hover {
+            text-decoration: underline;
+        }
+        
+        .legend {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(30, 30, 50, 0.85);
+            padding: 15px;
+            border-radius: 8px;
+            z-index: 1000;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+        }
+        
+        .legend h4 {
+            color: #ffcc00;
+            margin-bottom: 10px;
+            text-align: center;
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin: 8px 0;
+        }
+        
+        .legend-icon {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            margin-right: 10px;
+        }
+        
+        @media (max-width: 1024px) {
+            .container {
+                flex-direction: column;
+            }
+            
+            .map-container, .sidebar {
+                width: 100%;
+            }
+            
+            .sidebar {
+                max-height: 40vh;
+            }
+        }
+
+
+         iframe {
+      width: 100%;
+      height: 100%;
+      border: none;
+    }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1><i class="fas fa-landmark"></i> Памятники Великой Отечественной Войны</h1>
+        <p>Интерактивная карта мемориалов и памятных мест России. Посмотрите оцифрованные памятники, сохраните память о подвиге народа</p>
+    </div>
+    
+    <div class="container">
+        <div class="map-container">
+            <div id="map"></div>
+            <div class="legend">
+                <h4>Легенда карты</h4>
+                <div class="legend-item">
+                    <div class="legend-icon" style="background: #ffcc00;"></div>
+                    <span>Памятники и скульптуры</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-icon" style="background: #b21f1f;"></div>
+                    <span>Мемориальные комплексы</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-icon" style="background: #1a2a6c;"></div>
+                    <span>Музеи и выставки</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-icon" style="background: #4CAF50;"></div>
+                    <span>Военная техника</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="sidebar">
+            <h2><i class="fas fa-filter"></i> Управление картой</h2>
+            
+            <div class="controls">
+                <input type="text" class="search-box" placeholder="Поиск памятников...">
+                
+                <span class="filter-title">Тип памятника:</span>
+                <div class="filter-options">
+                    <button class="filter-btn active">Все</button>
+                    <button class="filter-btn">Памятники</button>
+                    <button class="filter-btn">Мемориалы</button>
+                    <button class="filter-btn">Музеи</button>
+                </div>
+            </div>
+            
+            <h2><i class="fas fa-list"></i> Список памятников</h2>
+            <div class="monument-list">
+                <div class="monument-item" data-id="0">
+                    <h3>Аллея Славы <i class="fas fa-star"></i></h3>
+                    <p>г. Армавир, Краснодарский край</p>
+                    <p>Мемориал в честь героев ВОВ</p>
+                    <span class="monument-type">Мемориальный комплекс</span>
+                </div>
+                <div class="monument-item" data-id="1">
+                    <h3>Мамаев Курган</h3>
+                    <p>г. Волгоград</p>
+                    <p>Мемориальный комплекс "Героям Сталинградской битвы"</p>
+                    <span class="monument-type">Мемориальный комплекс</span>
+                </div>
+                <div class="monument-item" data-id="2">
+                    <h3>Пискарёвское кладбище</h3>
+                    <p>г. Санкт-Петербург</p>
+                    <p>Мемориал жертвам блокады Ленинграда</p>
+                    <span class="monument-type">Мемориальный комплекс</span>
+                </div>
+                <div class="monument-item" data-id="3">
+                    <h3>Музей Победы</h3>
+                    <p>г. Москва</p>
+                    <p>Центральный музей Великой Отечественной войны</p>
+                    <span class="monument-type">Музей</span>
+                </div>
+                <div class="monument-item" data-id="4">
+                    <h3>Памятник Воину-Освободителю</h3>
+                    <p>г. Берлин, Трептов-парк</p>
+                    <p>Советский мемориал в Берлине</p>
+                    <span class="monument-type">Памятник</span>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="viewer-container" id="model-viewer-container">
+        <div class="viewer-header">
+            <h2 id="viewer-title">Аллея Славы - г. Армавир</h2>
+            <button class="close-viewer">&times;</button>
+        </div>
+        <div class="viewer-content">
+            <div id="model-viewer">
+                <iframe src="index.html" allowfullscreen></iframe>
+            </div>
+        </div>
+        
+        <div class="viewer-description">
+            <p><strong>Аллея Славы в Армавире</strong> - мемориальный комплекс, созданный в честь героев Великой Отечественной войны. Открыт в 1975 году к 30-летию Победы. Центральным элементом комплекса является 18-метровая стела, увенчанная скульптурой Родины-матери. На мраморных плитах высечены имена более 12 тысяч армавирцев, павших на полях сражений.</p>
+            <p>Данный памятник был оцифрован с использованием технологии панорамной съемки, что позволяет рассмотреть все детали мемориала в интерактивном режиме.</p>
+        </div>
+    </div>
+    
+    <div class="footer">
+        <p>Проект создан для сохранения памяти о Великой Отечественной войне | Данные обновлены: 31 мая 2025 года</p>
+        <p>При поддержке Министерства культуры РФ | <a href="#">Добавить памятник на карту</a></p>
+    </div>
+
+
+
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+    <script>
+        // Инициализация карты
+        const map = L.map('map').setView([55.751244, 37.618423], 4);
+        
+        // Добавление слоя карты
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        }).addTo(map);
+        
+        // Иконки для разных типов памятников
+        const iconTypes = {
+            monument: L.icon({
+                iconUrl: 'https://cdn.rawgit.com/pointhi/leaflet-color-markers/master/img/marker-icon-yellow.png',
+                iconSize: [25, 41],
+                iconAnchor: [12, 41]
+            }),
+            memorial: L.icon({
+                iconUrl: 'https://cdn.rawgit.com/pointhi/leaflet-color-markers/master/img/marker-icon-red.png',
+                iconSize: [25, 41],
+                iconAnchor: [12, 41]
+            }),
+            museum: L.icon({
+                iconUrl: 'https://cdn.rawgit.com/pointhi/leaflet-color-markers/master/img/marker-icon-blue.png',
+                iconSize: [25, 41],
+                iconAnchor: [12, 41]
+            }),
+            equipment: L.icon({
+                iconUrl: 'https://cdn.rawgit.com/pointhi/leaflet-color-markers/master/img/marker-icon-green.png',
+                iconSize: [25, 41],
+                iconAnchor: [12, 41]
+            })
+        };
+        
+        // Данные о памятниках
+        const monuments = [
+            {
+                id: 0,
+                name: "Аллея Славы",
+                type: "memorial",
+                city: "Армавир",
+                region: "Краснодарский край",
+                coords: [45.0010, 41.1232],
+                description: "Мемориальный комплекс в честь героев Великой Отечественной войны. Открыт в 1975 году к 30-летию Победы.",
+                details: "Центральным элементом комплекса является 18-метровая стела, увенчанная скульптурой Родины-матери. На мраморных плитах высечены имена более 12 тысяч армавирцев, павших на полях сражений."
+            },
+            {
+                id: 1,
+                name: "Мамаев Курган",
+                type: "memorial",
+                city: "Волгоград",
+                region: "Волгоградская область",
+                coords: [48.742, 44.537],
+                description: "Мемориальный комплекс 'Героям Сталинградской битвы'. Центральная фигура - Родина-мать зовёт!",
+                details: "Высота главного монумента - 85 метров. Комплекс создавался с 1959 по 1967 год. Является одним из самых больших памятников, посвящённых событиям Второй мировой войны."
+            },
+            {
+                id: 2,
+                name: "Пискарёвское кладбище",
+                type: "memorial",
+                city: "Санкт-Петербург",
+                region: "Ленинградская область",
+                coords: [59.999, 30.421],
+                description: "Мемориал жертвам блокады Ленинграда и воинам-защитникам города.",
+                details: "Открыт 9 мая 1960 года. В центре мемориала находится шестиметровая бронзовая скульптура 'Родина-мать'. На гранитной стене выбиты строки Ольги Берггольц: 'Никто не забыт и ничто не забыто'."
+            },
+            {
+                id: 3,
+                name: "Музей Победы",
+                type: "museum",
+                city: "Москва",
+                region: "Московская область",
+                coords: [55.730, 37.503],
+                description: "Центральный музей Великой Отечественной войны на Поклонной горе.",
+                details: "Открыт 9 мая 1995 года. Экспозиция включает более 60 тысяч экспонатов, диорамы ключевых сражений, зал памяти и скорби. На открытой площадке представлена военная техника."
+            },
+            {
+                id: 4,
+                name: "Памятник Воину-Освободителю",
+                type: "monument",
+                city: "Берлин",
+                region: "Германия",
+                coords: [52.486, 13.469],
+                description: "Советский мемориал в Трептов-парке в Берлине.",
+                details: "Открыт 8 мая 1949 года. Центральный монумент - 13-метровая бронзовая фигура советского солдата, держащего на руках спасённую немецкую девочку и опустившего меч на разрубленную свастику."
+            }
+        ];
+        
+        // Добавление маркеров на карту
+        const markers = [];
+        
+        monuments.forEach(monument => {
+            let icon;
+            switch(monument.type) {
+                case "memorial": icon = iconTypes.memorial; break;
+                case "museum": icon = iconTypes.museum; break;
+                case "equipment": icon = iconTypes.equipment; break;
+                default: icon = iconTypes.monument;
+            }
+            
+            const marker = L.marker(monument.coords, {icon: icon})
+                .addTo(map)
+                .bindPopup(`
+                    <div style="text-align:center;">
+                        <h3 style="margin:0;color:#b21f1f;">${monument.name}</h3>
+                        <p><i>${monument.city}, ${monument.region}</i></p>
+                        <p>${monument.description}</p>
+                        ${monument.id === 0 ? 
+                            '<button onclick="openModelViewer(0)" style="background:#ffcc00;color:#1a2a6c;border:none;padding:8px 15px;border-radius:5px;cursor:pointer;margin-top:10px;">Посмотреть 3D модель</button>' : 
+                            '<p style="color:#888;font-style:italic;">3D модель в процессе оцифровки</p>'}
+                    </div>
+                `);
+                
+            marker.monumentId = monument.id;
+            markers.push(marker);
+            
+            // Добавляем обработчик для открытия 3D просмотра
+            if (monument.id === 0) {
+                marker.on('click', function() {
+                    setTimeout(() => {
+                        document.querySelector('.leaflet-popup-content button').click();
+                    }, 100);
+                });
+            }
+        });
+        
+        // Функция для открытия 3D просмотра
+        function openModelViewer(id) {
+            const monument = monuments.find(m => m.id === id);
+            document.getElementById('viewer-title').textContent = `${monument.name} - г. ${monument.city}`;
+            document.getElementById('model-viewer-container').classList.add('active');
+        }
+        
+        // Закрытие 3D просмотра
+        document.querySelector('.close-viewer').addEventListener('click', function() {
+            document.getElementById('model-viewer-container').classList.remove('active');
+        });
+        
+        // Обработчики для списка памятников
+        document.querySelectorAll('.monument-item').forEach(item => {
+            item.addEventListener('click', function() {
+                const id = parseInt(this.dataset.id);
+                const monument = monuments.find(m => m.id === id);
+                
+                // Центрируем карту на выбранном памятнике
+                map.setView(monument.coords, 14);
+                
+                // Открываем popup
+                const marker = markers.find(m => m.monumentId === id);
+                if (marker) {
+                    marker.openPopup();
+                }
+                
+                // Если это Аллея Славы - открываем 3D просмотр
+                if (id === 0) {
+                    setTimeout(openModelViewer.bind(null, id), 500);
+                }
+            });
+        });
+        
+        // Фильтрация по типу
+        document.querySelectorAll('.filter-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+                this.classList.add('active');
+                
+                const filterType = this.textContent.toLowerCase();
+                
+                markers.forEach(marker => {
+                    const monumentId = marker.monumentId;
+                    const monument = monuments.find(m => m.id === monumentId);
+                    
+                    if (filterType === "все" || 
+                        (filterType === "памятники" && monument.type === "monument") ||
+                        (filterType === "мемориалы" && monument.type === "memorial") ||
+                        (filterType === "музеи" && monument.type === "museum")) {
+                        if (!map.hasLayer(marker)) {
+                            map.addLayer(marker);
+                        }
+                    } else {
+                        if (map.hasLayer(marker)) {
+                            map.removeLayer(marker);
+                        }
+                    }
+                });
+            });
+        });
+        
+        // Поиск
+        const searchBox = document.querySelector('.search-box');
+        searchBox.addEventListener('input', function() {
+            const searchTerm = this.value.toLowerCase();
+            
+            document.querySelectorAll('.monument-item').forEach(item => {
+                const name = item.querySelector('h3').textContent.toLowerCase();
+                const location = item.querySelector('p').textContent.toLowerCase();
+                
+                if (name.includes(searchTerm) || location.includes(searchTerm)) {
+                    item.style.display = 'block';
+                } else {
+                    item.style.display = 'none';
+                }
+            });
+        });
+    </script>
+</body>
+</html>
